@@ -3,50 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ULTRA REF v1.2</title>
+    <title>ULTRA REF v1.4</title>
     <style>
         body { background: #000; color: #fff; font-family: sans-serif; margin: 0; text-align: center; height: 100vh; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-        #timer { font-size: 3.2rem; font-weight: 800; margin-top: -10px; }
-        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
-        .btn-c { padding: 8px 15px; border-radius: 20px; border: none; font-weight: bold; font-size: 0.8rem; }
-        .scores { display: flex; width: 100%; justify-content: space-around; }
+        #timer { font-size: 3rem; font-weight: 800; color: #fff; margin-bottom: 5px; }
+        .controls { display: flex; justify-content: center; gap: 5px; margin-bottom: 10px; }
+        .btn-c { padding: 6px 12px; border-radius: 15px; border: none; font-weight: bold; font-size: 0.7rem; color: white; }
+        .scores { display: flex; width: 100%; justify-content: space-around; align-items: center; }
         .team { display: flex; flex-direction: column; align-items: center; width: 45%; }
-        .name { font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
-        .num { font-size: 4rem; font-weight: 900; line-height: 1; margin-bottom: 10px; }
-        .plus { width: 70px; height: 70px; border-radius: 50%; border: none; background: #333; color: #fff; font-size: 2.5rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+        .name { font-size: 0.7rem; color: #888; margin-bottom: 2px; text-decoration: underline; }
+        .num { font-size: 4rem; font-weight: 900; line-height: 1; margin-bottom: 5px; }
+        .plus { width: 65px; height: 65px; border-radius: 50%; border: none; background: #222; color: #fff; font-size: 2.2rem; display: flex; align-items: center; justify-content: center; border: 2px solid #444; }
+        .minus { width: 35px; height: 35px; border-radius: 50%; border: none; background: #111; color: #ff4444; font-size: 1.2rem; margin-top: 5px; border: 1px solid #333; }
+        .reset-score { margin-top: 15px; background: transparent; color: #555; border: 1px solid #333; padding: 4px 10px; border-radius: 10px; font-size: 0.6rem; }
     </style>
 </head>
 <body>
+
     <div id="timer" onclick="setTime()">20:00</div>
+    
     <div class="controls">
         <button class="btn-c" style="background:#28a745" onclick="start()">START</button>
-        <button class="btn-c" style="background:#dc3545" onclick="reset()">RESET</button>
+        <button class="btn-c" style="background:#dc3545" onclick="resetTimer()">RESET TIME</button>
     </div>
+
     <div class="scores">
         <div class="team">
-            <div class="name">TEAM A</div>
+            <div class="name" onclick="rename('A')">TEAM A</div>
             <div id="sA" class="num" style="color:#ffcc00">0</div>
-            <button class="plus" onclick="goal('A')">+</button>
+            <button class="plus" onclick="goal('A', 1)">+</button>
+            <button class="minus" onclick="goal('A', -1)">-</button>
         </div>
+
         <div class="team">
-            <div class="name">TEAM B</div>
+            <div class="name" onclick="rename('B')">TEAM B</div>
             <div id="sB" class="num" style="color:#00e5ff">0</div>
-            <button class="plus" onclick="goal('B')">+</button>
+            <button class="plus" onclick="goal('B', 1)">+</button>
+            <button class="minus" onclick="goal('B', -1)">-</button>
         </div>
     </div>
+
+    <button class="reset-score" onclick="resetScores()">RESET SCORES ONLY</button>
+
     <script>
         let t = 1200, run = false, sA = 0, sB = 0;
+        
         function draw() {
             let m = Math.floor(t/60), s = t%60;
             document.getElementById('timer').innerText = `${m}:${s<10?'0':''}${s}`;
         }
+
         function start() {
-            if(!run) { run = setInterval(()=>{ if(t>0){t--; draw();} }, 1000); }
-            else { clearInterval(run); run = false; }
+            if(!run) { 
+                run = setInterval(()=>{ if(t>0){t--; draw();} }, 1000); 
+                document.querySelector('[style*="#28a745"]').innerText="PAUSE"; 
+            } else { 
+                clearInterval(run); run = false; 
+                document.querySelector('[style*="#28a745"]').innerText="START"; 
+            }
         }
-        function reset() { clearInterval(run); run=false; t=1200; draw(); }
-        function goal(tm) { if(tm=='A'){sA++; document.getElementById('sA').innerText=sA;} else {sB++; document.getElementById('sB').innerText=sB;} }
-        function setTime() { let p = prompt("Minutes?", "20"); if(p) {t=p*60; draw();} }
+
+        function resetTimer() { 
+            clearInterval(run); run=false; t=1200; draw(); 
+            document.querySelector('[style*="#28a745"]').innerText="START"; 
+        }
+
+        function goal(tm, val) { 
+            if(tm=='A'){ sA = Math.max(0, sA + val); document.getElementById('sA').innerText=sA; } 
+            else { sB = Math.max(0, sB + val); document.getElementById('sB').innerText=sB; } 
+        }
+
+        function resetScores() {
+            if(confirm("Reset scores to 0-0?")) {
+                sA = 0; sB = 0;
+                document.getElementById('sA').innerText = 0;
+                document.getElementById('sB').innerText = 0;
+            }
+        }
+
+        function setTime() { let p = prompt("Mins?", "20"); if(p) {t=p*60; draw();} }
+        function rename(tm) { let n = prompt("Name?"); if(n) document.querySelectorAll('.name')[tm=='A'?0:1].innerText = n.toUpperCase().substring(0,8); }
     </script>
 </body>
 </html>
