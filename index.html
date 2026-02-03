@@ -15,7 +15,6 @@
         table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         th, td { padding: 8px 4px; text-align: left; border-bottom: 1px solid #333; }
         .team-box { margin-top:10px; padding:10px; border-radius:8px; font-size:0.85rem; line-height:1.5; background: #111; border-left: 4px solid var(--accent-color); }
-        .rating-val { color: var(--accent-color); font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,11 +28,8 @@
         </div>
 
         <div class="card">
-            <strong>Squad Management</strong>
+            <strong>Squad (GK | Name | Rate | $)</strong>
             <table>
-                <thead>
-                    <tr><th>GK</th><th>Name</th><th>Rating</th><th>$</th></tr>
-                </thead>
                 <tbody id="playerList"></tbody>
             </table>
         </div>
@@ -66,20 +62,17 @@
         function setRate(i, v) { state.players[i].rating = parseInt(v); save(); }
 
         function shufflePro() {
-            // Separate Keepers and Outfielders, sort Outfielders by rating
             let keepers = state.players.filter(p => p.isGK).sort(() => 0.5 - Math.random());
             let others = state.players.filter(p => !p.isGK).sort((a, b) => b.rating - a.rating);
             
             let teamA = [], teamB = [];
             let scoreA = 0, scoreB = 0;
 
-            // 1. Balance Keepers
             keepers.forEach((k, idx) => {
                 if (idx % 2 === 0) { teamA.push(k.name + " 🧤"); scoreA += k.rating; }
                 else { teamB.push(k.name + " 🧤"); scoreB += k.rating; }
             });
 
-            // 2. Snake Draft for Outfielders to balance ratings
             others.forEach((p) => {
                 if (scoreA <= scoreB) { teamA.push(p.name); scoreA += p.rating; }
                 else { teamB.push(p.name); scoreB += p.rating; }
@@ -109,7 +102,7 @@
                     <td><input type="checkbox" ${p.isGK ? 'checked' : ''} onchange="toggleGK(${i})"></td>
                     <td>${p.name}</td>
                     <td><select onchange="setRate(${i}, this.value)">${options}</select></td>
-                    <td onclick="togglePaid(${i})" style="cursor:pointer; color:${p.paid?'#00ff00':'#ff4444'}">${p.paid?'✔':'✘'}</td>
+                    <td onclick="togglePaid(${i})" style="color:${p.paid?'#00ff00':'#ff4444'}">${p.paid?'✔':'✘'}</td>
                 </tr>`;
             });
         }
