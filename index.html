@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Futsal Manager Pro v4.3</title>
+    <title>Futsal Manager Pro v4.4</title>
     <style>
         :root { --bg-color: #000; --text-color: #fff; --accent-color: #ffcc00; --danger-color: #ff4444; --card-bg: #1a1a1a; }
         body { font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
@@ -14,13 +14,12 @@
         input, select { background: #222; border: 1px solid #444; color: white; padding: 5px; border-radius: 4px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         th, td { padding: 5px; text-align: left; border-bottom: 1px solid #333; }
-        .gk-tag { color: #00e5ff; font-weight: bold; font-size: 0.7rem; }
-        .rating-select { font-size: 0.75rem; width: 45px; }
+        .team-box { margin-top:10px; padding:8px; border-radius:8px; font-size:0.85rem; line-height:1.4; }
     </style>
 </head>
 <body>
 
-    <h1>Futsal_Permanent_DB v4.3</h1>
+    <h1>Futsal_Permanent_DB v4.4</h1>
 
     <div class="container">
         <div class="card">
@@ -29,18 +28,15 @@
         </div>
 
         <div class="card">
-            <strong>Squad & Ratings</strong>
+            <strong>Squad (GK | Name | Rate | Paid)</strong>
             <table>
-                <thead>
-                    <tr><th>GK</th><th>Name</th><th>Rate</th><th>Paid</th></tr>
-                </thead>
                 <tbody id="playerList"></tbody>
             </table>
         </div>
 
         <div class="card">
-            <button class="btn" onclick="shuffleTeams()">Shuffle Teams</button>
-            <div id="teamDisplay" style="margin-top:8px; font-size:0.85rem;"></div>
+            <button class="btn" onclick="shuffleBalancedTeams()">Shuffle (Balanced GKs)</button>
+            <div id="teamDisplay"></div>
         </div>
 
         <button class="btn" style="background:#444; color:white; font-size:0.7rem;" onclick="clearData()">Reset Database</button>
@@ -50,10 +46,7 @@
         const DB_KEY = 'Futsal_Permanent_DB';
         let state = JSON.parse(localStorage.getItem(DB_KEY)) || { players: [] };
 
-        function save() {
-            localStorage.setItem(DB_KEY, JSON.stringify(state));
-            render();
-        }
+        function save() { localStorage.setItem(DB_KEY, JSON.stringify(state)); render(); }
 
         function addPlayer() {
             const name = document.getElementById('pName').value.trim();
@@ -64,39 +57,53 @@
             }
         }
 
-        function toggleGK(index) { state.players[index].isGK = !state.players[index].isGK; save(); }
-        function togglePaid(index) { state.players[index].paid = !state.players[index].paid; save(); }
-        function setRating(index, val) { state.players[index].rating = parseInt(val); save(); }
+        function toggleGK(i) { state.players[i].isGK = !state.players[i].isGK; save(); }
+        function togglePaid(i) { state.players[i].paid = !state.players[i].paid; save(); }
+        function setRate(i, v) { state.players[i].rating = parseInt(v); save(); }
 
-        function shuffleTeams() {
-            let p = [...state.players].sort(() => 0.5 - Math.random());
-            let mid = Math.ceil(p.length / 2);
-            let tA = p.slice(0, mid).map(x => x.name + (x.isGK ? " (GK)" : ""));
-            let tB = p.slice(mid).map(x => x.name + (x.isGK ? " (GK)" : ""));
+        function shuffleBalancedTeams() {
+            let keepers = state.players.filter(p => p.isGK).sort(() => 0.5 - Math.random());
+            let others = state.players.filter(p => !p.isGK).sort(() => 0.5 - Math.random());
+            
+            let teamA = [], teamB = [];
+
+            // Distribute Keepers first
+            keepers.forEach((k, idx) => {
+                if (idx % 2 === 0) teamA.push(k.name + " 🧤");
+                else teamB.push(k.name + " 🧤");
+            });
+
+            // Distribute the rest
+            others.forEach((p, idx) => {
+                // If Team A has fewer people, add there, else Team B
+                if (teamA.length <= teamB.length) teamA.push(p.name);
+                else teamB.push(p.name);
+            });
+
             document.getElementById('teamDisplay').innerHTML = `
-                <div style="color:var(--accent-color)">A: ${tA.join(', ')}</div>
-                <div style="color:#00e5ff">B: ${tB.join(', ')}</div>`;
+                <div class="team-box" style="border:1px solid var(--accent-color)">
+                    <b style="color:var(--accent-color)">TEAM A:</b><br>${teamA.join(', ')}
+                </div>
+                <div class="team-box" style="border:1px solid #00e5ff">
+                    <b style="color:#00e5ff">TEAM B:</b><br>${teamB.join(', ')}
+                </div>`;
         }
 
-        function clearData() { if(confirm("Clear all?")) { state.players = []; save(); } }
+        function clearData() { if(confirm("Delete all?")) { state.players = []; save(); } }
 
         function render() {
             const body = document.getElementById('playerList');
             body.innerHTML = '';
             state.players.forEach((p, i) => {
                 body.innerHTML += `
-                    <tr>
-                        <td><input type="checkbox" ${p.isGK ? 'checked' : ''} onchange="toggleGK(${i})"></td>
-                        <td>${p.name}</td>
-                        <td>
-                            <select class="rating-select" onchange="setRating(${i}, this.value)">
-                                ${[1,2,3,4,5].map(n => `<option value="${n}" ${p.rating==n?'selected':''}>${n}★</option>`).join('')}
-                            </select>
-                        </td>
-                        <td onclick="togglePaid(${i})" style="cursor:pointer; color:${p.paid?'#00ff00':'#ff4444'}">
-                            ${p.paid ? '✔' : '✘'}
-                        </td>
-                    </tr>`;
+                <tr>
+                    <td><input type="checkbox" ${p.isGK ? 'checked' : ''} onchange="toggleGK(${i})"></td>
+                    <td><b>${p.name}</b></td>
+                    <td><select onchange="setRate(${i}, this.value)">
+                        ${[1,2,3,4,5].map(n => `<option value="${n}" ${p.rating==n?'selected':''}>${n}★</option>`).join('')}
+                    </select></td>
+                    <td onclick="togglePaid(${i})" style="color:${p.paid?'#00ff00':'#ff4444'}">${p.paid?'✔':'✘'}</td>
+                </tr>`;
             });
         }
         render();
