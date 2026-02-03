@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Futsal Watch Ref</title>
+    <title>Futsal Watch Ref v1.1</title>
     <style>
         :root { --bg: #000; --tA: #ffcc00; --tB: #00e5ff; --txt: #fff; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding: 5px; text-align: center; overflow: hidden; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--txt); margin: 0; padding: 10px 5px; text-align: center; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
         
-        /* TIMER SECTION */
-        #timer-display { font-size: 2.5rem; font-weight: bold; margin: 5px 0; color: #fff; cursor: pointer; }
-        .timer-controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        /* TIMER SECTION - Larger and centered */
+        #timer-display { font-size: 2.8rem; font-weight: 800; margin-bottom: 5px; color: #fff; letter-spacing: 2px; }
+        .timer-controls { display: flex; gap: 8px; margin-bottom: 15px; }
         
-        /* SCORE SECTION */
-        .scoreboard { display: flex; justify-content: space-around; align-items: center; margin-top: 10px; }
-        .team { width: 45%; }
-        .score-num { font-size: 3rem; font-weight: bold; display: block; }
-        .team-name { font-size: 0.8rem; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        /* SCORE SECTION - Bigger Tap Areas */
+        .scoreboard { display: flex; justify-content: space-between; width: 100%; max-width: 280px; }
+        .team { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .score-num { font-size: 3.5rem; font-weight: 900; line-height: 1; margin: 5px 0; }
+        .team-name { font-size: 0.75rem; font-weight: bold; opacity: 0.8; }
         
-        /* BUTTONS */
-        .btn { border: none; border-radius: 50%; width: 45px; height: 45px; font-size: 1.5rem; font-weight: bold; cursor: pointer; }
-        .btn-plus { background: #333; color: white; border: 1px solid #555; }
-        .btn-start { background: #28a745; color: white; border-radius: 8px; width: 60px; font-size: 0.9rem; }
-        .btn-reset { background: #dc3545; color: white; border-radius: 8px; width: 60px; font-size: 0.9rem; }
+        /* BUTTONS - Optimized for Watch Ultra */
+        .btn { border: none; border-radius: 50%; width: 55px; height: 55px; font-size: 2rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-plus { background: #222; color: white; border: 2px solid #444; }
+        .btn-minus { background: #111; color: #666; width: 35px; height: 35px; font-size: 1.2rem; margin-top: 8px; border: 1px solid #333; }
         
-        /* SETTINGS */
-        .setup { font-size: 0.7rem; color: #888; margin-top: 10px; }
-        input { background: #222; border: 1px solid #444; color: #fff; width: 40px; text-align: center; border-radius: 4px; }
+        .btn-ctrl { border-radius: 20px; padding: 5px 15px; font-size: 0.8rem; font-weight: bold; border: none; }
+        .btn-start { background: #28a745; color: white; }
+        .btn-reset { background: #dc3545; color: white; }
+
+        /* Hidden Setup - Less Clutter */
+        .setup { position: absolute; bottom: 5px; font-size: 0.6rem; opacity: 0.4; }
+        input { background: none; border: none; color: #fff; width: 25px; text-align: center; font-size: 0.6rem; }
     </style>
 </head>
 <body>
 
     <div id="timer-display" onclick="adjustTime()">20:00</div>
+    
     <div class="timer-controls">
-        <button class="btn-start" id="startBtn" onclick="toggleTimer()">START</button>
-        <button class="btn-reset" onclick="resetTimer()">RESET</button>
+        <button class="btn-ctrl btn-start" id="startBtn" onclick="toggleTimer()">START</button>
+        <button class="btn-ctrl btn-reset" onclick="resetTimer()">RESET</button>
     </div>
 
     <div class="scoreboard">
@@ -42,23 +46,23 @@
             <div class="team-name" onclick="renameTeam('A')">TEAM A</div>
             <span class="score-num" id="scoreA">0</span>
             <button class="btn btn-plus" onclick="changeScore('A', 1)">+</button>
-            <button class="btn btn-plus" style="font-size: 0.8rem; height: 30px; width: 30px; margin-top: 5px;" onclick="changeScore('A', -1)">-</button>
+            <button class="btn btn-minus" onclick="changeScore('A', -1)">-</button>
         </div>
 
         <div class="team" style="color: var(--tB);">
             <div class="team-name" onclick="renameTeam('B')">TEAM B</div>
             <span class="score-num" id="scoreB">0</span>
             <button class="btn btn-plus" onclick="changeScore('B', 1)">+</button>
-            <button class="btn btn-plus" style="font-size: 0.8rem; height: 30px; width: 30px; margin-top: 5px;" onclick="changeScore('B', -1)">-</button>
+            <button class="btn btn-minus" onclick="changeScore('B', -1)">-</button>
         </div>
     </div>
 
     <div class="setup">
-        Set Mins: <input type="number" id="minInput" value="20" onchange="updateDefaultTime()">
+        Mins: <input type="number" id="minInput" value="20" onchange="updateDefaultTime()">
     </div>
 
     <script>
-        let timeLeft = 1200; // 20 mins in seconds
+        let timeLeft = 1200; 
         let timerId = null;
         let scoreA = 0;
         let scoreB = 0;
@@ -66,8 +70,7 @@
         function updateDisplay() {
             let m = Math.floor(timeLeft / 60);
             let s = timeLeft % 60;
-            document.getElementById('timer-display').innerText = 
-                `${m}:${s < 10 ? '0' : ''}${s}`;
+            document.getElementById('timer-display').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
         }
 
         function toggleTimer() {
@@ -78,13 +81,8 @@
                 document.getElementById('startBtn').style.background = "#28a745";
             } else {
                 timerId = setInterval(() => {
-                    if (timeLeft > 0) {
-                        timeLeft--;
-                        updateDisplay();
-                    } else {
-                        clearInterval(timerId);
-                        alert("Match Over!");
-                    }
+                    if (timeLeft > 0) { timeLeft--; updateDisplay(); } 
+                    else { clearInterval(timerId); }
                 }, 1000);
                 document.getElementById('startBtn').innerText = "PAUSE";
                 document.getElementById('startBtn').style.background = "#ffc107";
@@ -100,8 +98,7 @@
         }
 
         function updateDefaultTime() {
-            const mins = document.getElementById('minInput').value;
-            timeLeft = mins * 60;
+            timeLeft = document.getElementById('minInput').value * 60;
             updateDisplay();
         }
 
@@ -115,19 +112,14 @@
             }
         }
 
-        function renameTeam(team) {
-            let name = prompt("Enter Team Name:");
-            if (name) {
-                document.querySelectorAll('.team-name')[team === 'A' ? 0 : 1].innerText = name.substring(0, 8);
-            }
+        function renameTeam(t) {
+            let n = prompt("Name:");
+            if (n) document.querySelectorAll('.team-name')[t === 'A' ? 0 : 1].innerText = n.substring(0, 6).toUpperCase();
         }
 
         function adjustTime() {
-            let newTime = prompt("Edit remaining seconds:", timeLeft);
-            if (newTime) {
-                timeLeft = parseInt(newTime);
-                updateDisplay();
-            }
+            let n = prompt("Secs left:", timeLeft);
+            if (n) { timeLeft = parseInt(n); updateDisplay(); }
         }
     </script>
 </body>
