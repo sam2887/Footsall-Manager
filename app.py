@@ -13,7 +13,7 @@ class Player(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True)
     rating = Column(Integer, default=5)
-    position = Column(String, default="DEF") # Default to DEF now that MID is gone
+    position = Column(String, default="DEF")
     is_goalie = Column(Boolean, default=False)
     linked_to = Column(String, nullable=True)
 
@@ -67,17 +67,12 @@ if app_mode == "📋 Manager Pro":
             with st.form("p_form"):
                 f_name = st.text_input("Name", value=str(getattr(target, "name", "")))
                 f_rate = st.slider("Rating", 1, 10, int(getattr(target, "rating", 5)))
-                
-                # Removed MID - Clean 3-position system
                 pos_options = ["GK", "DEF", "FWD"]
                 curr_p = str(getattr(target, "position", "DEF")).upper()
-                # Auto-map old MID to DEF or FWD if found
                 if curr_p == "MID": curr_p = "DEF"
                 s_idx = pos_options.index(curr_p) if curr_p in pos_options else 1
-
                 f_pos = st.selectbox("Position", pos_options, index=s_idx)
                 f_gk = st.checkbox("Is Goalie?", value=bool(getattr(target, "is_goalie", False)) or f_pos == "GK")
-
                 others = [str(p.name) for p in raw_all if p.name != f_name]
                 curr_l = str(getattr(target, "linked_to", "None"))
                 f_link = st.selectbox("Link Partner", ["None"] + others, index=(others.index(curr_l)+1 if curr_l in others else 0))
@@ -121,35 +116,43 @@ if app_mode == "📋 Manager Pro":
         wipe_teams()
         with SessionLocal() as session:
             present = [p for p in session.query(Player).all() if st.session_state.get(f"at_{p.id}", False)]
-            if len(present) < (t_count * 4):
-                st.error("Not enough players for a match!")
+            if len(present) < (t_count * 2):
+                st.error("Not enough players!")
             else:
-                # --- ALGORITHM: ELITE GK PRIORITY ---
-                gks = sorted([p for p in present if p.is_goalie], key=lambda x: x.rating, reverse=True)
-                outfielders = [p for p in present if not p.is_goalie]
-                random.shuffle(outfielders)
-                outfielders.sort(key=lambda x: x.rating, reverse=True)
+                # 1. Separate GKs and Outfielders
+                gks = sorted([p for p in present if p.is_goalie or p.position == "GK"], key=lambda x: x.rating, reverse=True)
+                outfielders = [p for p in present if p not in gks]
+                
+                # 2. Add Tiered Randomness (Shuffles players with same/similar ratings)
+                outfielders.sort(key=lambda x: (x.rating, random.random()), reverse=True)
 
                 final_teams = [{"name": f"Team {chr(65+i)}", "players": [], "rating": 0, "has_gk": False} for i in range(t_count)]
                 
-                # Assign GKs First
+                # 3. Assign GKs (One per team)
                 for i, gk in enumerate(gks):
                     if i < t_count:
                         final_teams[i]["players"].append(gk)
                         final_teams[i]["rating"] += gk.rating
                         final_teams[i]["has_gk"] = True
                     else:
-                        outfielders.append(gk) # Extra GKs become outfielders
+                        outfielders.append(gk) # Extras become outfielders
+                        outfielders.sort(key=lambda x: (x.rating, random.random()), reverse=True)
 
-                # Assign Outfielders (Round Robin for 5-5-5 size parity)
+                # 4. SNAKE DRAFT for Outfielders
                 for i, p in enumerate(outfielders):
-                    target_idx = i % t_count
+                    round_num = i // t_count
+                    if round_num % 2 == 0:
+                        target_idx = i % t_count # Forward: 0, 1, 2
+                    else:
+                        target_idx = (t_count - 1) - (i % t_count) # Backward: 2, 1, 0
+                    
                     final_teams[target_idx]["players"].append(p)
                     final_teams[target_idx]["rating"] += p.rating
                 
                 st.session_state.final_teams = final_teams
+                st.rerun()
 
-    # --- DISPLAY & SWAP LOGIC ---
+    # --- DISPLAY & SWAP ---
     if "final_teams" in st.session_state:
         cols = st.columns(t_count)
         for i, team in enumerate(st.session_state.final_teams):
@@ -158,30 +161,27 @@ if app_mode == "📋 Manager Pro":
                 if not team["has_gk"]: st.warning("🧤 Guest GK Needed")
                 for p in team["players"]:
                     label = f"{'🧤' if p.is_goalie else '🏃'} {p.name} ({p.rating})"
-                    if st.button(label, key=f"btn_{p.id}"):
+                    if st.button(label, key=f"btn_{p.id}_{i}"):
                         st.session_state.swap_list.append({"p": p, "t_idx": i})
                         if len(st.session_state.swap_list) == 2:
-                            # EXECUTE SWAP
                             s1, s2 = st.session_state.swap_list
-                            p1_idx = next(idx for idx, player in enumerate(st.session_state.final_teams[s1['t_idx']]["players"]) if player.id == s1['p'].id)
-                            p2_idx = next(idx for idx, player in enumerate(st.session_state.final_teams[s2['t_idx']]["players"]) if player.id == s2['p'].id)
+                            # Swap Logic
+                            t1_list = st.session_state.final_teams[s1['t_idx']]["players"]
+                            t2_list = st.session_state.final_teams[s2['t_idx']]["players"]
+                            idx1 = next(idx for idx, player in enumerate(t1_list) if player.id == s1['p'].id)
+                            idx2 = next(idx for idx, player in enumerate(t2_list) if player.id == s2['p'].id)
+                            t1_list[idx1], t2_list[idx2] = t2_list[idx2], t1_list[idx1]
                             
-                            # Swap
-                            st.session_state.final_teams[s1['t_idx']]["players"][p1_idx], st.session_state.final_teams[s2['t_idx']]["players"][p2_idx] = \
-                            st.session_state.final_teams[s2['t_idx']]["players"][p2_idx], st.session_state.final_teams[s1['t_idx']]["players"][p1_idx]
-                            
-                            # Recalculate ratings
                             for t in st.session_state.final_teams:
                                 t["rating"] = sum(pl.rating for pl in t["players"])
                                 t["has_gk"] = any(pl.is_goalie for pl in t["players"])
-                            
                             st.session_state.swap_list = []
                             st.rerun()
         
         if st.session_state.swap_list:
-            st.info(f"Selected for swap: {st.session_state.swap_list[0]['p'].name}. Click another player to swap.")
+            st.info(f"Swap selected: {st.session_state.swap_list[0]['p'].name}. Click someone else to finish swap.")
 
-        # Telegram Export
+        # Telegram
         msg = "⚽ *FUTSAL LINEUP* ⚽\n\n"
         for t in st.session_state.final_teams:
             msg += f"*{t['name']}* (Rating: {t['rating']})\n"
@@ -204,27 +204,16 @@ else:
     else:
         rots = [("RED", "BLUE", "GREEN"), ("BLUE", "GREEN", "RED"), ("GREEN", "RED", "BLUE")]
         cur = rots[st.session_state.rotation_idx % 3] if st.session_state.ref_3_teams else ("RED", "BLUE", "WAIT")
-        
         col1, col2, col3 = st.columns([2, 1, 2])
         with col1:
-            st.subheader(cur[0])
-            st.markdown(f"## {st.session_state.score_a}")
+            st.subheader(cur[0]); st.markdown(f"## {st.session_state.score_a}")
             if st.button("➕ Goal", key="ga"): st.session_state.score_a += 1; st.rerun()
         with col2:
             if st.button("🔄"): st.session_state.score_a = 0; st.session_state.score_b = 0; st.rerun()
         with col3:
-            st.subheader(cur[1])
-            st.markdown(f"## {st.session_state.score_b}")
+            st.subheader(cur[1]); st.markdown(f"## {st.session_state.score_b}")
             if st.button("➕ Goal", key="gb"): st.session_state.score_b += 1; st.rerun()
-        
         if st.session_state.ref_3_teams:
             st.info(f"Waiting: {cur[2]}")
-            if st.button("🔄 Next Match"):
-                st.session_state.rotation_idx += 1
-                st.session_state.score_a = 0
-                st.session_state.score_b = 0
-                st.rerun()
-        
-        if st.button("⚙️ Exit"):
-            st.session_state.ref_3_teams = None
-            st.rerun()
+            if st.button("🔄 Next Match"): st.session_state.rotation_idx += 1; st.session_state.score_a = 0; st.session_state.score_b = 0; st.rerun()
+        if st.button("⚙️ Exit"): st.session_state.ref_3_teams = None; st.rerun()
